@@ -1,0 +1,56 @@
+name: Release
+
+# Builds a signed Android APK and publishes it as a GitHub Release.
+# Run it by pushing a tag such as v0.1.0, or from the Actions tab ("Run workflow").
+#
+# Optional secrets (Settings > Secrets and variables > Actions) keep the same signing
+# key across releases, so a new version installs over the old one:
+#   ADFREE_KEYSTORE_BASE64    base64 of the .jks file
+#   ADFREE_KEYSTORE_PASSWORD  its password (key alias "adfree")
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Load signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ADFREE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ADFREE_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/adfree.jks"
+            echo "ADFREE_KEYSTORE=$RUNNER_TEMP/adfree.jks" >> "$GITHUB_ENV"
+            echo "ADFREE_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No signing key secret set; signing with a temporary key. Uninstall the old version before installing this one."
+          fi
+      - name: Test and build release APK
+        run: ./gradlew :core:test :app:assembleRelease --console=plain
+      # Always named AdFree.apk, so this link always gets the newest version (the QR code
+      # in the README points at it):
+      # https://github.com/Bottleneckonline/Ad-app/releases/latest/download/AdFree.apk
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk AdFree.apk
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          name: AdFree ${{ github.ref_type == 'tag' && github.ref_name || format('build {0}', github.run_number) }}
+          files: AdFree.apk
+          make_latest: true
+          body: |
+            **Install on Android:** open this page on your phone, tap the `.apk` file below, and allow your browser to install apps when Android asks.
+            Then open AdFree and switch on "Block ads". See the README for details.

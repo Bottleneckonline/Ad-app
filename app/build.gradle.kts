@@ -17,8 +17,24 @@ android {
         versionName = "0.1.0"
     }
 
+    // Release signing key, given to CI as secrets (see .github/workflows/release.yml).
+    // Without it the release APK is signed with the build machine's debug key, which
+    // installs fine but cannot be installed over a version signed with another key.
+    val keystore = System.getenv("ADFREE_KEYSTORE")?.let(::file)?.takeIf { it.exists() }
+    signingConfigs {
+        if (keystore != null) {
+            create("release") {
+                storeFile = keystore
+                storePassword = System.getenv("ADFREE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ADFREE_KEY_ALIAS") ?: "adfree"
+                keyPassword = System.getenv("ADFREE_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }

@@ -8,6 +8,26 @@ loads. All other traffic goes over the normal network untouched, and nothing is 
 to any AdFree server. See [docs/PLATFORM_LIMITS.md](docs/PLATFORM_LIMITS.md) for what
 this can and cannot block, and for the app store rules.
 
+## Install on your Android phone
+
+Scan this with the phone's camera, or open the link on the phone:
+
+<img src="docs/install-qr.png" alt="QR code to download AdFree" width="240">
+
+https://github.com/Bottleneckonline/Ad-app/releases/latest/download/AdFree.apk
+
+1. The repository is private, so sign in to GitHub in the phone's browser if asked.
+2. Open the downloaded `AdFree.apk`. Android asks once to allow your browser to
+   install apps: tap **Settings**, switch on **Allow from this source**, go back.
+3. Tap **Install**. If Play Protect warns that it doesn't recognise the app, tap
+   **More details > Install anyway** (it warns about every app not from the Play Store).
+4. Open AdFree, switch on **Block ads**, and accept the VPN request.
+5. Recommended: **Settings > Network & internet > VPN > AdFree > Always-on VPN**, so it
+   keeps running after a restart.
+
+The same link always gives the newest version. A new version is published whenever a
+`v*` tag is pushed (`.github/workflows/release.yml`).
+
 ## Status: milestone 1
 
 | Part | State |
