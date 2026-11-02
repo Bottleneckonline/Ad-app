@@ -1,0 +1,91 @@
+# Builds the signed release APK that customers download after buying AdFree.
+#
+# Run it from the Actions tab ("Run workflow"), or push a tag such as v1.0.0.
+# Needs these repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64   the upload/release keystore, base64-encoded
+#   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS
+#   ANDROID_KEY_PASSWORD
+# and these repository variables:
+#   LS_STORE_ID, LS_PRODUCT_ID  Lemon Squeezy store and product ids (numbers)
+#   BUY_URL                     the checkout link opened by the in-app "Buy" button
+# See docs/LAUNCH_CHECKLIST.md.
+name: Release Android
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Check release settings
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          LS_STORE_ID: ${{ vars.LS_STORE_ID }}
+          LS_PRODUCT_ID: ${{ vars.LS_PRODUCT_ID }}
+          BUY_URL: ${{ vars.BUY_URL }}
+        run: |
+          missing=""
+          [ -n "$KEYSTORE" ] || missing="$missing ANDROID_KEYSTORE_BASE64(secret)"
+          [ -n "$LS_STORE_ID" ] || missing="$missing LS_STORE_ID(variable)"
+          [ -n "$LS_PRODUCT_ID" ] || missing="$missing LS_PRODUCT_ID(variable)"
+          [ -n "$BUY_URL" ] || missing="$missing BUY_URL(variable)"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing release settings:$missing. See docs/LAUNCH_CHECKLIST.md."
+            exit 1
+          fi
+
+      - name: Decode keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/adfree-release.jks"
+
+      - name: Test and build signed APK
+        env:
+          ADFREE_KEYSTORE_FILE: ${{ runner.temp }}/adfree-release.jks
+          ADFREE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ADFREE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ADFREE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ADFREE_VERSION_CODE: ${{ github.run_number }}
+          ADFREE_LS_STORE_ID: ${{ vars.LS_STORE_ID }}
+          ADFREE_LS_PRODUCT_ID: ${{ vars.LS_PRODUCT_ID }}
+          ADFREE_BUY_URL: ${{ vars.BUY_URL }}
+        run: ./gradlew :core:test :app:assembleRelease --console=plain
+
+      - name: Verify signature and name the file
+        id: apk
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk
+          NAME="AdFree-${GITHUB_REF_NAME//\//-}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "$NAME"
+          sha256sum "$NAME" > "$NAME.sha256"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          rm -f "$RUNNER_TEMP/adfree-release.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adfree-release-apk
+          path: |
+            ${{ steps.apk.outputs.name }}
+            ${{ steps.apk.outputs.name }}.sha256
+
+      - name: Draft a GitHub release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            ${{ steps.apk.outputs.name }}
+            ${{ steps.apk.outputs.name }}.sha256

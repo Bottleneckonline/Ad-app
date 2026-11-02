@@ -42,6 +42,43 @@
             android:visibility="gone" />
 
         <TextView
+            android:id="@+id/license_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/license_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/buy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/license_buy" />
+
+            <EditText
+                android:id="@+id/license_key"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:autofillHints=""
+                android:hint="@string/license_key_hint"
+                android:inputType="textNoSuggestions|textVisiblePassword"
+                android:minHeight="48dp" />
+
+            <Button
+                android:id="@+id/activate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/license_activate" />
+        </LinearLayout>
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"

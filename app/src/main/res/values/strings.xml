@@ -16,4 +16,15 @@
     <string name="notification_text">Blocking ads in apps and games</string>
     <string name="notification_stop">Stop</string>
     <string name="private_dns_warning">Private DNS is set to a specific provider in Android settings, so ads may get through. Set it to Automatic or Off.</string>
+    <string name="license_unlocked">AdFree is unlocked. Thank you for your support!</string>
+    <plurals name="license_trial">
+        <item quantity="one">Free trial: %d day left</item>
+        <item quantity="other">Free trial: %d days left</item>
+    </plurals>
+    <string name="license_expired">Your free trial has ended. Unlock AdFree to keep blocking ads.</string>
+    <string name="license_buy">Buy AdFree (one-time payment)</string>
+    <string name="license_key_hint">License key from your purchase email</string>
+    <string name="license_activate">Activate</string>
+    <string name="license_thanks">AdFree is unlocked. Thank you!</string>
+    <string name="trial_over_toast">Your free trial has ended. Buy AdFree or enter your license key below.</string>
 </resources>

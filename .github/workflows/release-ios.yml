@@ -1,0 +1,77 @@
+# Archives AdFree for iOS and uploads it to App Store Connect / TestFlight.
+#
+# Run it from the Actions tab ("Run workflow"), or push a tag such as v1.0.0.
+# Needs these repository secrets (Settings → Secrets and variables → Actions):
+#   ASC_KEY_ID          App Store Connect API key id
+#   ASC_ISSUER_ID       App Store Connect API issuer id
+#   ASC_KEY_P8_BASE64   the downloaded AuthKey_XXXX.p8, base64-encoded
+# and this repository variable:
+#   APPLE_TEAM_ID       your 10-character Apple Developer team id
+# The API key needs the Admin role so Xcode can create the signing certificate and
+# profiles (cloud-managed signing). See docs/LAUNCH_CHECKLIST.md.
+name: Release iOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check release settings
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          TEAM: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          [ -n "$ASC_KEY_ID" ] || missing="$missing ASC_KEY_ID(secret)"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing ASC_ISSUER_ID(secret)"
+          [ -n "$ASC_KEY" ] || missing="$missing ASC_KEY_P8_BASE64(secret)"
+          [ -n "$TEAM" ] || missing="$missing APPLE_TEAM_ID(variable)"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing release settings:$missing. See docs/LAUNCH_CHECKLIST.md."
+            exit 1
+          fi
+
+      - name: Test Swift core
+        run: swift test --package-path ios/AdFreeCore
+
+      - name: Generate Xcode project
+        run: brew install xcodegen && cd ios && xcodegen
+
+      - name: Write API key
+        run: echo "${{ secrets.ASC_KEY_P8_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Archive
+        run: |
+          cd ios
+          xcodebuild -project AdFree.xcodeproj -scheme AdFree -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/AdFree.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            DEVELOPMENT_TEAM="${{ vars.APPLE_TEAM_ID }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive | tail -80
+          exit ${PIPESTATUS[0]}
+
+      - name: Upload to App Store Connect
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :teamID string ${{ vars.APPLE_TEAM_ID }}" ios/ci/ExportOptions.plist
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/AdFree.xcarchive" \
+            -exportOptionsPlist ios/ci/ExportOptions.plist -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Remove API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"

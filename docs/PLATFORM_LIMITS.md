@@ -39,11 +39,15 @@ See [HOW_ADS_WORK.md](HOW_ADS_WORK.md) for how in-app ads work and the SDK test 
 - If **Settings → Network → Private DNS** is set to a specific provider (for example
   `dns.google`), Android bypasses AdFree. "Automatic" or "Off" is fine. The app warns
   about this.
-- **Google Play does not allow apps that block ads in other apps** (Play's "Device and
-  Network Abuse" policy). Blokada, AdGuard and others ship their full ad blockers
-  outside Play: as a direct APK download, on F-Droid, or through their own site.
-  AdFree should plan the same. A Play version could only ship as a "privacy / tracker
-  blocker" with restrictions, and would risk removal.
+- **Google Play does not allow apps that block ads in other apps.** Play's Device and
+  Network Abuse policy bans apps that block or interfere with another app's ads, and
+  the VpnService policy says "any manipulation of ads that can impact monetization will
+  result in rejection" (checked November 2026). AdFree for Android is therefore sold as
+  a direct download with a license key, like Blokada and AdGuard. See
+  [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md).
+- Google's developer verification applies to apps installed outside Play (Brazil,
+  Indonesia, Singapore and Thailand from 30 September 2026, worldwide from 2027), so the
+  package name and signing key must be registered in the Android Developer Console.
 - Tip: in **Settings → Network → VPN → AdFree → Always-on VPN**, Android keeps AdFree
   running after reboots.
 
@@ -55,6 +59,8 @@ See [HOW_ADS_WORK.md](HOW_ADS_WORK.md) for how in-app ads work and the SDK test 
   but very large lists need a more compact format (planned).
 - Apple allows content blockers on the App Store, but reviews VPN-based apps closely:
   the app must explain clearly what it does and must not collect browsing data.
+  Guideline 5.4 also says apps using the VPN feature may only come from developers
+  enrolled **as an organization** (a legal entity with a D-U-N-S number).
   Several DNS blockers are on the App Store (AdGuard Pro, DNSCloak, NextDNS), so it is
   possible.
 - Safari can additionally use a Safari Content Blocker for cosmetic web blocking; that
