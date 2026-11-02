@@ -78,6 +78,19 @@ python3 -I scripts/sdk-audit/audit.py    # list the servers inside current ad SD
 server, add it to `core/src/test/resources/sdk-hosts.txt` and, if the test fails, to
 `mobile-ads.txt`.
 
+## Selling AdFree
+
+AdFree is free to try for 7 days, then unlocked with one small payment: an in-app
+purchase on iOS (StoreKit 2), and a license key from a Lemon Squeezy shop for the
+Android direct download (Google Play does not allow ad blockers). Release builds are
+made by the **Release Android** and **Release iOS** GitHub Actions workflows.
+
+- [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md): every step to launch, with the
+  ones only the owner can do marked.
+- [docs/store/](docs/store/): App Store listing text, Android sales page text.
+- [site/](site/): website with privacy policy and support pages.
+- [store-assets/](store-assets/): app icons for the stores.
+
 ## Next milestones
 
 1. Download blocklist updates in the app instead of only bundling them, and let users
@@ -86,5 +99,4 @@ server, add it to `core/src/test/resources/sdk-hosts.txt` and, if the test fails
 3. Per-app switch, for games where the user wants rewarded ads.
 4. iOS: compact on-disk list format for the extension's memory limit, stats screen,
    TestFlight build.
-5. Release builds: signed APK on GitHub Releases (Google Play does not allow ad
-   blockers, see the limits doc) and an App Store submission.
+5. In-app update check for the Android direct download.
