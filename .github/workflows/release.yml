@@ -1,7 +1,8 @@
 name: Release
 
 # Builds a signed Android APK and publishes it as a GitHub Release.
-# Run it by pushing a tag such as v0.1.0, or from the Actions tab ("Run workflow").
+# Runs on every push to main (each merged change becomes a new release), on a tag such
+# as v0.2.0, or from the Actions tab ("Run workflow").
 #
 # Optional secrets (Settings > Secrets and variables > Actions) keep the same signing
 # key across releases, so a new version installs over the old one:
@@ -9,6 +10,7 @@ name: Release
 #   ADFREE_KEYSTORE_PASSWORD  its password (key alias "adfree")
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 

@@ -25,8 +25,8 @@ https://github.com/Bottleneckonline/Ad-app/releases/latest/download/AdFree.apk
 5. Recommended: **Settings > Network & internet > VPN > AdFree > Always-on VPN**, so it
    keeps running after a restart.
 
-The same link always gives the newest version. A new version is published whenever a
-`v*` tag is pushed (`.github/workflows/release.yml`).
+The same link always gives the newest version. A new version is published every time a
+change is merged into `main` (`.github/workflows/release.yml`).
 
 ## Status: milestone 1
 
