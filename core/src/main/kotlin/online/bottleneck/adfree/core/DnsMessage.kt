@@ -13,6 +13,7 @@ data class DnsQuestion(
 object DnsMessage {
     const val TYPE_A = 1
     const val TYPE_AAAA = 28
+    const val TYPE_CNAME = 5
     const val CLASS_IN = 1
     private const val HEADER = 12
     private const val BLOCKED_TTL = 60
@@ -88,6 +89,65 @@ object DnsMessage {
             System.arraycopy(answerData, 0, out, p, answerData.size)
         }
         return out
+    }
+
+    /**
+     * Returns the CNAME targets in a response's answer section, for example
+     * `metrics.shop.com CNAME shop.tracker-network.com` gives `shop.tracker-network.com`.
+     * Ad and tracking companies use this to hide behind a first-party name.
+     * Returns an empty list for anything that cannot be parsed.
+     */
+    fun cnameTargets(msg: ByteArray, length: Int = msg.size): List<String> {
+        if (length < HEADER) return emptyList()
+        val questions = u16(msg, 4)
+        val answers = u16(msg, 6)
+        var pos = HEADER
+        val targets = ArrayList<String>()
+        try {
+            repeat(questions) { pos = readName(msg, length, pos).second + 4 }
+            repeat(answers) {
+                pos = readName(msg, length, pos).second
+                if (pos + 10 > length) return targets
+                val type = u16(msg, pos)
+                val rdLength = u16(msg, pos + 8)
+                val rdata = pos + 10
+                if (rdata + rdLength > length) return targets
+                if (type == TYPE_CNAME) targets.add(readName(msg, length, rdata).first)
+                pos = rdata + rdLength
+            }
+        } catch (e: IllegalArgumentException) {
+            // Malformed: keep what was read so far.
+        }
+        return targets
+    }
+
+    /** Reads a possibly compressed name at [start]. Returns the name and the offset just past it. */
+    private fun readName(msg: ByteArray, length: Int, start: Int): Pair<String, Int> {
+        val labels = ArrayList<String>()
+        var pos = start
+        var end = -1
+        var jumps = 0
+        while (true) {
+            require(pos < length)
+            val len = msg[pos].toInt() and 0xFF
+            when {
+                len == 0 -> {
+                    if (end < 0) end = pos + 1
+                    return labels.joinToString(".").lowercase() to end
+                }
+                len and 0xC0 == 0xC0 -> {
+                    require(pos + 1 < length && ++jumps <= 32)
+                    if (end < 0) end = pos + 2
+                    pos = ((len and 0x3F) shl 8) or (msg[pos + 1].toInt() and 0xFF)
+                }
+                len and 0xC0 == 0 -> {
+                    require(pos + 1 + len <= length)
+                    labels.add(String(msg, pos + 1, len, Charsets.US_ASCII))
+                    pos += len + 1
+                }
+                else -> throw IllegalArgumentException("bad label")
+            }
+        }
     }
 
     internal fun u16(b: ByteArray, i: Int) = ((b[i].toInt() and 0xFF) shl 8) or (b[i + 1].toInt() and 0xFF)

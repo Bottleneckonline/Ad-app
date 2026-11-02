@@ -14,6 +14,8 @@ import android.system.OsConstants
 import android.util.Log
 import online.bottleneck.adfree.core.DnsFilter
 import online.bottleneck.adfree.core.FilterDecision
+import online.bottleneck.adfree.core.PublicResolvers
+import online.bottleneck.adfree.core.ReplyDecision
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
@@ -151,10 +153,15 @@ class AdBlockVpnService : VpnService() {
             .addAddress(TUN_ADDRESS_V6, 128)
             .addDnsServer(DNS_ADDRESS_V6)
             .addRoute(DNS_ADDRESS_V6, 128)
-            // Only the virtual DNS addresses are routed into the tunnel. Keep all other
+            // Only DNS server addresses are routed into the tunnel. Keep all other
             // IPv4 and IPv6 traffic flowing over the normal network.
             .allowFamily(OsConstants.AF_INET)
             .allowFamily(OsConstants.AF_INET6)
+        // Also catch apps and ad SDKs that skip the phone's DNS setting and ask a public
+        // resolver such as 8.8.8.8 directly. Our own upstream sockets are protect()ed,
+        // so they still reach these servers over the normal network.
+        PublicResolvers.IPV4.forEach { builder.addRoute(it, 32) }
+        PublicResolvers.IPV6.forEach { builder.addRoute(it, 128) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
         return builder.establish()
     }
@@ -176,8 +183,8 @@ class AdBlockVpnService : VpnService() {
                     BlockerState.recordBlocked(decision.domain)
                     write(output, decision.response)
                 }
+                is FilterDecision.Refused -> write(output, decision.response)
                 is FilterDecision.Forward -> {
-                    BlockerState.recordAllowed()
                     upstreamPool?.execute { forward(decision, dnsFilter, output) }
                 }
                 FilterDecision.Drop -> Unit
@@ -196,7 +203,12 @@ class AdBlockVpnService : VpnService() {
                     socket.send(DatagramPacket(query, query.size, InetAddress.getByName(server), 53))
                     val reply = DatagramPacket(ByteArray(4096), 4096)
                     socket.receive(reply)
-                    write(output, dnsFilter.wrapUpstreamReply(decision.query, reply.data, reply.length))
+                    val answer = dnsFilter.upstreamReply(decision.query, reply.data, reply.length)
+                    when (answer) {
+                        is ReplyDecision.Blocked -> BlockerState.recordBlocked(answer.domain)
+                        is ReplyDecision.Pass -> BlockerState.recordAllowed()
+                    }
+                    write(output, answer.response)
                 }
                 return
             } catch (e: IOException) {

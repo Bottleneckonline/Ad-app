@@ -22,8 +22,16 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
         let ipv4 = NEIPv4Settings(addresses: [Self.tunnelAddress], subnetMasks: ["255.255.255.255"])
-        ipv4.includedRoutes = [NEIPv4Route(destinationAddress: Self.dnsAddress, subnetMask: "255.255.255.255")]
+        // Our DNS address plus well-known public resolvers that some apps use directly.
+        ipv4.includedRoutes = ([Self.dnsAddress] + PublicResolvers.ipv4).map {
+            NEIPv4Route(destinationAddress: $0, subnetMask: "255.255.255.255")
+        }
         settings.ipv4Settings = ipv4
+        let ipv6 = NEIPv6Settings(addresses: ["fd00:111:222::1"], networkPrefixLengths: [128])
+        ipv6.includedRoutes = PublicResolvers.ipv6.map {
+            NEIPv6Route(destinationAddress: $0, networkPrefixLength: 128)
+        }
+        settings.ipv6Settings = ipv6
         let dns = NEDNSSettings(servers: [Self.dnsAddress])
         dns.matchDomains = [""] // use our DNS server for every domain
         settings.dnsSettings = dns
@@ -46,7 +54,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
                 switch filter.decide([UInt8](packet)) {
                 case .drop:
                     break
-                case let .blocked(_, response):
+                case let .blocked(_, response), let .refused(response):
                     self.packetFlow.writePackets([Data(response)], withProtocols: [proto])
                 case let .forward(_, query):
                     self.forward(query, filter: filter, proto: proto)
@@ -67,8 +75,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         connection.receiveMessage { [weak self] data, _, _, _ in
             defer { connection.cancel() }
             guard let self, let data else { return }
-            let reply = filter.wrapUpstreamReply(query: query, reply: [UInt8](data))
-            self.packetFlow.writePackets([Data(reply)], withProtocols: [proto])
+            let answer = filter.upstreamReply(query: query, reply: [UInt8](data))
+            self.packetFlow.writePackets([Data(answer.response)], withProtocols: [proto])
         }
         queue.asyncAfter(deadline: .now() + 5) { connection.cancel() }
     }
@@ -77,10 +85,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         let defaults = UserDefaults(suiteName: SharedConfig.appGroup)
         let allowed = (defaults?.string(forKey: SharedConfig.allowlistKey) ?? "")
             .split(whereSeparator: \.isNewline).map(String.init)
-        guard let url = Bundle.main.url(forResource: "blocklist", withExtension: "txt"),
-              let text = try? String(contentsOf: url, encoding: .utf8) else {
-            return DomainBlocklist(blocked: [String](), allowed: allowed)
+        // The general list plus AdFree's own mobile ad network list (both in blocklists/).
+        let domains = ["blocklist", "mobile-ads"].flatMap { name -> [String] in
+            guard let url = Bundle.main.url(forResource: name, withExtension: "txt"),
+                  let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+            return DomainBlocklist.parseDomains(text)
         }
-        return DomainBlocklist(blocked: DomainBlocklist.parseDomains(text), allowed: allowed)
+        return DomainBlocklist(blocked: domains, allowed: allowed)
     }
 }

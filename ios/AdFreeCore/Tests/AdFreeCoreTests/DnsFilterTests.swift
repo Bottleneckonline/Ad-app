@@ -47,7 +47,37 @@ final class DnsFilterTests: XCTestCase {
             return XCTFail("expected forward")
         }
         XCTAssertEqual(domain, "example.com")
-        XCTAssertEqual(UdpPacket.parse(filter.wrapUpstreamReply(query: query, reply: [1, 2, 3]))?.payload, [1, 2, 3])
+        XCTAssertEqual(UdpPacket.parse(filter.upstreamReply(query: query, reply: [1, 2, 3]).response)?.payload, [1, 2, 3])
         if case .drop = filter.decide(packet(self.query("example.com", type: 1), port: 853)) {} else { XCTFail() }
+    }
+
+    func testBlocksCnameToAdServer() throws {
+        let q = query("ads.studio.com", type: 1)
+        guard case let .forward(_, udp) = filter.decide(packet(q)) else { return XCTFail("expected forward") }
+        var answer = Array(q[0..<12])
+        answer[2] = 0x81; answer[3] = 0x80; answer[7] = 1
+        answer += q[12...]
+        var target: [UInt8] = []
+        for label in "x.ad.doubleclick.net".split(separator: ".") { target.append(UInt8(label.utf8.count)); target += Array(label.utf8) }
+        target.append(0)
+        answer += [0xC0, 0x0C, 0, 5, 0, 1, 0, 0, 1, 0, 0, UInt8(target.count)] + target
+        XCTAssertEqual(DnsMessage.cnameTargets(answer), ["x.ad.doubleclick.net"])
+        guard case let .blocked(domain, _) = filter.upstreamReply(query: udp, reply: answer) else {
+            return XCTFail("expected blocked")
+        }
+        XCTAssertEqual(domain, "x.ad.doubleclick.net")
+    }
+
+    func testRefusesEncryptedDnsWithReset() throws {
+        var tcp = [UInt8](repeating: 0, count: 20)
+        tcp[0] = 0xA0; tcp[1] = 0x28; tcp[2] = 0x03; tcp[3] = 0x55 // 41000 -> 853
+        tcp[4] = 0x11; tcp[5] = 0x22; tcp[6] = 0x33; tcp[7] = 0x44
+        tcp[12] = 0x50; tcp[13] = 0x02
+        let syn = IpPackets.build(source: app, destination: dns, proto: 6, segment: tcp, checksumAt: 16)
+        guard case let .refused(reset) = filter.decide(syn) else { return XCTFail("expected refused") }
+        XCTAssertEqual(UdpPacket.checksum(Array(reset[0..<20])), 0)
+        XCTAssertEqual(Array(reset[20..<24]), [0x03, 0x55, 0xA0, 0x28])
+        XCTAssertEqual(Array(reset[28..<32]), [0x11, 0x22, 0x33, 0x45])
+        XCTAssertEqual(reset[33], 0x14)
     }
 }

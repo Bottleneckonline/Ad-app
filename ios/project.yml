@@ -38,6 +38,8 @@ targets:
       - App/SharedConfig.swift
       - path: ../blocklists/blocklist.txt
         buildPhase: resources
+      - path: ../blocklists/mobile-ads.txt
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: online.bottleneck.adfree.tunnel

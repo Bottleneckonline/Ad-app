@@ -23,9 +23,12 @@ or jailbreaking, but it is not perfect.
   posts. Blocking them would break the app. No DNS or VPN blocker can remove these.
 - **Ads built into the app itself** (for example a game's own "watch this" screen
   that is bundled in the app).
-- **Apps that bypass the system DNS**, for example browsers with "Secure DNS / DNS over
-  HTTPS" switched on, or apps that hard-code a resolver. A later milestone will catch
-  common hard-coded resolvers.
+- **Apps that bypass the system DNS** with a resolver AdFree does not know about. AdFree
+  catches the common ones (8.8.8.8, 1.1.1.1, Quad9, OpenDNS and others) and refuses
+  encrypted DNS to them, so apps fall back to filtered DNS. A browser set to *always*
+  use one specific secure DNS provider will show errors instead; set it to automatic.
+
+See [HOW_ADS_WORK.md](HOW_ADS_WORK.md) for how in-app ads work and the SDK test results.
 - Some games or apps refuse to work, or withhold rewards, when their ads fail to load.
   The allowlist exists for that: add the domain and the app works again.
 

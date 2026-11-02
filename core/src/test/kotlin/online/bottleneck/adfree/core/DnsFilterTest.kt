@@ -137,16 +137,87 @@ class DnsFilterTest {
         )
         assertEquals("example.com", decision.domain)
         val upstream = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 99)
-        val wrapped = assertNotNull(UdpPacket.parse(filter.wrapUpstreamReply(decision.query, upstream, 12)))
+        val pass = assertIs<ReplyDecision.Pass>(filter.upstreamReply(decision.query, upstream, 12))
+        val wrapped = assertNotNull(UdpPacket.parse(pass.response))
         assertEquals(app4, wrapped.destination)
         assertContentEquals(upstream.copyOf(12), wrapped.payload)
+    }
+
+    /** A resolver answer: [name] CNAME [target] (compressed), then target A 1.2.3.4. */
+    private fun cnameAnswer(name: String, target: String): ByteArray {
+        val q = query(name, DnsMessage.TYPE_A)
+        val out = java.io.ByteArrayOutputStream()
+        fun w16(v: Int) { out.write(v shr 8); out.write(v and 0xFF) }
+        out.write(q, 0, 12)
+        val bytes = out.toByteArray(); out.reset()
+        bytes[2] = 0x81.toByte(); bytes[3] = 0x80.toByte(); bytes[7] = 2
+        out.write(bytes); out.write(q, 12, q.size - 12)
+        val targetAt = out.size() + 12
+        w16(0xC00C); w16(5); w16(1); w16(0); w16(300)
+        val labels = target.split('.')
+        w16(labels.sumOf { it.length + 1 } + 1)
+        for (label in labels) { out.write(label.length); out.write(label.toByteArray()) }
+        out.write(0)
+        w16(0xC000 or targetAt); w16(1); w16(1); w16(0); w16(300); w16(4)
+        out.write(byteArrayOf(1, 2, 3, 4))
+        return out.toByteArray()
+    }
+
+    @Test fun readsCnameTargets() {
+        assertEquals(
+            listOf("x.ad.doubleclick.net"),
+            DnsMessage.cnameTargets(cnameAnswer("ads.studio.com", "x.ad.doubleclick.net")),
+        )
+        assertEquals(emptyList(), DnsMessage.cnameTargets(byteArrayOf(0, 1, 2)))
+        val truncated = cnameAnswer("ads.studio.com", "x.ad.doubleclick.net").copyOf(40)
+        assertEquals(emptyList(), DnsMessage.cnameTargets(truncated))
+    }
+
+    @Test fun blocksAdServersHiddenBehindCname() {
+        val forward = assertIs<FilterDecision.Forward>(
+            filter.decide(ipPacket(query("ads.studio.com", DnsMessage.TYPE_A))),
+        )
+        val blocked = assertIs<ReplyDecision.Blocked>(
+            filter.upstreamReply(forward.query, cnameAnswer("ads.studio.com", "x.ad.doubleclick.net")),
+        )
+        assertEquals("x.ad.doubleclick.net", blocked.domain)
+        val dns = assertNotNull(UdpPacket.parse(blocked.response)).payload
+        assertContentEquals(ByteArray(4), dns.copyOfRange(dns.size - 4, dns.size))
+
+        assertIs<ReplyDecision.Pass>(
+            filter.upstreamReply(forward.query, cnameAnswer("ads.studio.com", "cdn.studio-cdn.com")),
+        )
+    }
+
+    private fun tcpPacket(flags: Int, v6: Boolean = false, port: Int = 853): ByteArray {
+        val tcp = ByteArray(20)
+        DnsMessage.put16(tcp, 0, 41000); DnsMessage.put16(tcp, 2, port)
+        tcp[4] = 0x11; tcp[5] = 0x22; tcp[6] = 0x33; tcp[7] = 0x44 // sequence number
+        tcp[12] = 0x50; tcp[13] = flags.toByte()
+        return if (v6) IpPackets.build(app6, dns6, 6, tcp, 16) else IpPackets.build(app4, dns4, 6, tcp, 16)
+    }
+
+    @Test fun refusesEncryptedDnsConnectionsWithReset() {
+        for (v6 in listOf(false, true)) {
+            val refused = assertIs<FilterDecision.Refused>(filter.decide(tcpPacket(0x02, v6)))
+            val p = refused.response
+            val t = if (v6) 40 else 20
+            assertEquals(6, (p[if (v6) 6 else 9].toInt() and 0xFF))
+            assertEquals(853, DnsMessage.u16(p, t)) // from the port they called
+            assertEquals(41000, DnsMessage.u16(p, t + 2))
+            assertEquals(0x11223345, java.nio.ByteBuffer.wrap(p, t + 8, 4).int) // ack = seq + 1
+            assertEquals(0x14, p[t + 13].toInt()) // RST + ACK
+            assertValidTransportChecksum(p, protocol = 6)
+        }
+        // Only connection attempts get a reset; never answer a reset or a plain ACK.
+        assertIs<FilterDecision.Drop>(filter.decide(tcpPacket(0x10)))
+        assertIs<FilterDecision.Drop>(filter.decide(tcpPacket(0x04)))
     }
 
     @Test fun dropsNonDnsTraffic() {
         assertIs<FilterDecision.Drop>(filter.decide(ipPacket(query("example.com", 1), port = 853)))
         assertIs<FilterDecision.Drop>(filter.decide(ByteArray(40)))
-        val tcp = ipPacket(query("example.com", 1)).also { it[9] = 6 }
-        assertIs<FilterDecision.Drop>(filter.decide(tcp))
+        assertIs<FilterDecision.Drop>(filter.decide(ipPacket(query("example.com", 1)).copyOf(30), 30))
     }
 
     private fun assertValidIpv4Checksum(packet: ByteArray) {
@@ -154,14 +225,16 @@ class DnsFilterTest {
         assertValidUdpChecksum(packet)
     }
 
-    /** Recomputes the UDP checksum including the pseudo header; a correct packet sums to 0. */
-    private fun assertValidUdpChecksum(packet: ByteArray) {
+    private fun assertValidUdpChecksum(packet: ByteArray) = assertValidTransportChecksum(packet, 17)
+
+    /** Recomputes the UDP/TCP checksum including the pseudo header; a correct packet sums to 0. */
+    private fun assertValidTransportChecksum(packet: ByteArray, protocol: Int) {
         val v6 = (packet[0].toInt() shr 4) == 6
         val header = if (v6) 40 else 20
         val udpLength = packet.size - header
         val pseudo = java.io.ByteArrayOutputStream()
         if (v6) pseudo.write(packet, 8, 32) else pseudo.write(packet, 12, 8)
-        pseudo.write(0); pseudo.write(17); pseudo.write(udpLength shr 8); pseudo.write(udpLength and 0xFF)
+        pseudo.write(0); pseudo.write(protocol); pseudo.write(udpLength shr 8); pseudo.write(udpLength and 0xFF)
         if (v6) { pseudo.write(0); pseudo.write(0) } // pad to keep 16-bit alignment
         val all = pseudo.toByteArray() + packet.copyOfRange(header, packet.size)
         assertEquals(0, UdpPacket.checksum(0, all, 0, all.size))
