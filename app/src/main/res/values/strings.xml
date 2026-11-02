@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AdFree</string>
+    <string name="status_on">Ad blocking is ON</string>
+    <string name="status_off">Ad blocking is OFF</string>
+    <string name="status_starting">Starting…</string>
+    <string name="toggle">Block ads</string>
+    <string name="stats">%1$d blocked · %2$d allowed · %3$d domains on the list</string>
+    <string name="recent_title">Recently blocked</string>
+    <string name="recent_empty">Nothing blocked yet. Open a game or app with ads.</string>
+    <string name="allowlist_hint">Domains to never block, one per line</string>
+    <string name="allowlist_save">Save allowlist</string>
+    <string name="allowlist_saved">Allowlist saved</string>
+    <string name="vpn_denied">AdFree needs the VPN permission to filter ads. Nothing leaves your phone.</string>
+    <string name="notification_channel">Ad blocking</string>
+    <string name="notification_text">Blocking ads in apps and games</string>
+    <string name="notification_stop">Stop</string>
+    <string name="private_dns_warning">Private DNS is set to a specific provider in Android settings, so ads may get through. Set it to Automatic or Off.</string>
+</resources>

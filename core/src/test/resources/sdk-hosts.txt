@@ -1,0 +1,129 @@
+# Hostnames found inside real ad SDKs by scripts/sdk-audit/audit.py (Android builds from
+# Maven Central, November 2026). "block" hosts serve ads, ad config, ad creatives or ad
+# tracking and must be blocked. "allow" hosts also appear in the SDKs but are normal
+# services that apps need, so blocking them would break apps.
+
+# AppLovin MAX 13.7.0
+block a.applovin.com
+block a.applvn.com
+block assets.applovin.com
+block d.applovin.com
+block d.applvn.com
+block img.applovin.com
+block md.applovin.com
+block ms.applovin.com
+block ms.applvn.com
+block pdn.applovin.com
+block prod-a.applovin.com
+block res1.applovin.com
+block rt.applovin.com
+block rt.applvn.com
+block vid.applovin.com
+block p.applov.in
+block u.appl.vn
+
+# Unity Ads 4.21.0
+block gateway.unityads.unity3d.com
+block webview.unityads.unity3d.com
+
+# Unity LevelPlay (ironSource) 9.7.0
+block gw-is.iads.unity3d.com
+block gw-rv.iads.unity3d.com
+block ae.iads.unity3d.com
+block cdn.iads.unity3d.com
+block i-sdk.mediation.unity3d.com
+block o-sdk.mediation.unity3d.com
+block o-ext.mediation.unity3d.com
+block o-crash.mediation.unity3d.com
+block init.supersonicads.com
+block banner-gateway.supersonicads.com
+block pm-gateway.supersonicads.com
+block akm.ssacdn.com
+block cncn.ssacdn.com
+block itcn.ssacdn.com
+block local.ssacdn.com
+block networksdk.ssacdn.com
+block scc.ssacdn.com
+block www.ssacdn.com
+block scc.ssadscdn.cn
+block android-att.ironsrc.mobi
+block ironsource.mobi
+block secure.ironbeast.io
+block supersonic.ironbeast.io
+block postlog.supersonic.com
+
+# Liftoff Monetize (Vungle) 7.7.9
+block adx.ads.vungle.com
+block config.ads.vungle.com
+block events.ads.vungle.com
+block logs.ads.vungle.com
+
+# InMobi 11.5.1
+block ads.inmobi.com
+block config.inmobi.com
+block supply.inmobicdn.net
+block synapse.exchange.inmobi.com
+block telemetry.sdk.inmobi.com
+block unif-id.ssp.inmobi.com
+
+# Moloco 4.14.0
+block cdn-f.adsmoloco.com
+block sdkapi.dsp-api.moloco.com
+block sdkopmetrics-us.dsp-api.moloco.com
+
+# Amazon Publisher Services 12.0.3
+block aax.amazon-adsystem.com
+block aax-dtb-mobile-geo.amazon-adsystem.com
+block client.aps.amazon-adsystem.com
+block mads.amazon-adsystem.com
+block video-player.aps.amazon-adsystem.com
+block api.beta.sdklogger.publishers.advertising.a2z.com
+block gamma.cm.publishers.advertising.a2z.com
+block prod.tahoe-analytics.publishers.advertising.a2z.com
+block d1eneqn7ngr0gq.cloudfront.net
+
+# Start.io 5.4.0
+block sin-trp-rtb.startappnetwork.com
+block www.startapp.com
+
+# Chartboost 9.2.1
+block da.chartboost.com
+block live.chartboost.com
+block ssp-events.chartboost.com
+block chartboo.st
+
+# AdColony (Digital Turbine) 4.8.2
+block adc-ad-assets.adtilt.com
+block adc-launch.affle.ai
+block wd.adcolony.com
+
+# Documented endpoints of SDKs that are not on Maven Central (AdMob, Mintegral, Pangle,
+# DT Exchange, Meta), checked against their integration guides.
+block googleads.g.doubleclick.net
+block pagead2.googlesyndication.com
+block tpc.googlesyndication.com
+block imasdk.googleapis.com
+block an.facebook.com
+block configure-tcp-android.mtgglobals.com
+block cdn-adn-https.rayjump.com
+block api16-access-sg.pangle.io
+block api.fyber.com
+block wv.inner-active.mobi
+
+# Must keep working: these appear in the SDKs but are ordinary services.
+allow play.google.com
+allow play-lh.googleusercontent.com
+allow www.google.com
+allow support.google.com
+allow developer.android.com
+allow www.facebook.com
+allow s.facebook.com
+allow graph.facebook.com
+allow itunes.apple.com
+allow www.amazon.com
+allow m.media-amazon.com
+allow github.com
+allow cdnjs.cloudflare.com
+allow code.jquery.com
+allow qa-analytics.unity3d.com
+allow www.w3.org

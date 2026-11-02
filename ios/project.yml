@@ -1,0 +1,56 @@
+# Generate the Xcode project with XcodeGen (https://github.com/yonaskolb/XcodeGen):
+#   brew install xcodegen && cd ios && xcodegen
+name: AdFree
+options:
+  bundleIdPrefix: online.bottleneck
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    DEVELOPMENT_TEAM: ""   # set your Apple Developer team id
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  AdFreeCore:
+    path: AdFreeCore
+targets:
+  AdFree:
+    type: application
+    platform: iOS
+    sources:
+      - App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.bottleneck.adfree
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: AdFree
+        CODE_SIGN_ENTITLEMENTS: App/AdFree.entitlements
+    dependencies:
+      - target: AdFreeTunnel
+      - package: AdFreeCore
+  AdFreeTunnel:
+    type: app-extension
+    platform: iOS
+    sources:
+      - PacketTunnel
+      - App/SharedConfig.swift
+      - path: ../blocklists/blocklist.txt
+        buildPhase: resources
+      - path: ../blocklists/mobile-ads.txt
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.bottleneck.adfree.tunnel
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: AdFree Tunnel
+        CODE_SIGN_ENTITLEMENTS: PacketTunnel/PacketTunnel.entitlements
+    info:
+      path: PacketTunnel/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PacketTunnelProvider
+    dependencies:
+      - package: AdFreeCore

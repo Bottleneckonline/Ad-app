@@ -1,0 +1,117 @@
+# AdFree mobile ad networks list, maintained by hand in this repo.
+#
+# The general list (blocklist.txt) names individual hostnames. Ad SDKs keep adding new
+# ones (new regions, new CDNs, new "gateway" hosts), so a list of hosts lags behind.
+# This list blocks the whole domain of each company whose domain only serves ads,
+# which also covers future subdomains. A parent entry blocks every subdomain.
+#
+# Hosts marked [sdk] were found inside the real SDK files by scripts/sdk-audit/audit.py
+# and were not blocked by blocklist.txt before this list. Do not add domains that also
+# serve normal app content (facebook.com, google.com, unity3d.com, apple.com, ...).
+
+# --- Google AdMob / Ad Manager / AdSense (served to most Android and iOS apps) ---
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+admob.com
+adservice.google.com
+imasdk.googleapis.com          # Interactive Media Ads SDK: video ads before/inside content
+googletagservices.com
+
+# --- AppLovin MAX (largest mediation platform in mobile games) ---
+applovin.com
+applvn.com
+applov.in                      # [sdk] p.applov.in
+appl.vn                        # [sdk] u.appl.vn
+
+# --- Unity Ads and Unity LevelPlay (formerly ironSource) ---
+unityads.unity3d.com
+iads.unity3d.com               # [sdk] gw-is.iads.unity3d.com is the interstitial ad gateway
+mediation.unity3d.com          # [sdk] o-ext / o-crash.mediation.unity3d.com
+supersonicads.com
+ssacdn.com                     # [sdk] ad creative CDN: akm, cncn, itcn, local, www
+ssadscdn.cn                    # [sdk]
+ironsrc.mobi                   # [sdk] android-att.ironsrc.mobi
+ironsource.mobi                # [sdk]
+ironbeast.io                   # [sdk] secure / supersonic.ironbeast.io event collection
+supersonic.com                 # [sdk] postlog.supersonic.com
+iron-debug-controller.com      # [sdk]
+
+# --- Liftoff Monetize (Vungle) ---
+vungle.com
+liftoff.io
+
+# --- Meta Audience Network (only its ad-specific hosts; facebook.com itself stays) ---
+an.facebook.com
+
+# --- InMobi ---
+inmobi.com
+inmobicdn.net
+
+# --- Moloco ---
+adsmoloco.com
+dsp-api.moloco.com             # [sdk] sdkapi / sdkopmetrics-us.dsp-api.moloco.com
+
+# --- Amazon Publisher Services ---
+amazon-adsystem.com
+publishers.advertising.a2z.com # [sdk] sdk logger, config and analytics hosts
+d1eneqn7ngr0gq.cloudfront.net  # [sdk] host baked into the APS SDK
+
+# --- Start.io (StartApp) ---
+startappservice.com
+startappnetwork.com            # [sdk] sin-trp-rtb.startappnetwork.com
+startapp.com
+
+# --- Chartboost ---
+chartboost.com
+chartboo.st                    # [sdk]
+
+# --- AdColony / Digital Turbine Exchange (Fyber, Inneractive) ---
+adcolony.com
+adtilt.com
+adc-launch.affle.ai            # [sdk]
+fyber.com
+inner-active.mobi
+
+# --- Mintegral (Mobvista) ---
+mintegral.com
+mintegral.net
+rayjump.com
+mtgglobals.com
+
+# --- Pangle (ByteDance's ad network for apps outside China) ---
+pangle.io
+pangleglobal.com
+
+# --- Other in-app ad networks and exchanges ---
+bidmachine.io
+appodeal.com
+appodealx.com
+smaato.net
+pubnative.net
+ogury.co
+ogury.io
+presage.io
+tapjoy.com
+tapjoyads.com
+hyprmx.com
+kidoz.net
+yandexadexchange.net
+an.yandex.ru
+adfox.yandex.ru
+adsdk.yandex.ru
+iadsdk.apple.com
+
+# --- Encrypted DNS services ---
+# Some apps and browsers send lookups straight to these over HTTPS or TLS, which would
+# skip AdFree's filter. Blocking their names makes them fall back to normal DNS.
+# use-application-dns.net is Firefox's signal to turn its own encrypted DNS off.
+use-application-dns.net
+dns.google
+dns.google.com
+cloudflare-dns.com
+dns.quad9.net
+doh.opendns.com
+dns.nextdns.io
+dns.adguard-dns.com
+doh.dns.sb

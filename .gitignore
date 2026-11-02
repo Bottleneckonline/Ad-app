@@ -1,0 +1,16 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+# iOS
+ios/.build/
+ios/*.xcodeproj/
+xcuserdata/
+DerivedData/
