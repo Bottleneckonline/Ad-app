@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +18,8 @@ import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import online.bottleneck.adfree.core.Access
+import online.bottleneck.adfree.core.LicenseResult
 
 class MainActivity : Activity() {
 
@@ -32,6 +35,10 @@ class MainActivity : Activity() {
     private lateinit var stats: TextView
     private lateinit var recent: TextView
     private lateinit var warning: TextView
+    private lateinit var licenseStatus: TextView
+    private lateinit var licensePanel: View
+    private lateinit var licenseKey: EditText
+    private lateinit var activate: Button
     private val handler = Handler(Looper.getMainLooper())
     /** When the user switched blocking on and the tunnel is not up yet; 0 if not waiting. */
     private var startRequestedAt = 0L
@@ -57,6 +64,16 @@ class MainActivity : Activity() {
         warning = findViewById(R.id.warning)
         toggle.setOnCheckedChangeListener(onToggle)
 
+        licenseStatus = findViewById(R.id.license_status)
+        licensePanel = findViewById(R.id.license_panel)
+        licenseKey = findViewById(R.id.license_key)
+        activate = findViewById(R.id.activate)
+        findViewById<Button>(R.id.buy).apply {
+            visibility = if (BuildConfig.BUY_URL.isEmpty()) View.GONE else View.VISIBLE
+            setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.BUY_URL))) }
+        }
+        activate.setOnClickListener { activateLicense() }
+
         val allowlist = findViewById<EditText>(R.id.allowlist)
         allowlist.setText(Blocklists.allowlistText(this))
         findViewById<Button>(R.id.save_allowlist).setOnClickListener {
@@ -69,6 +86,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         handler.post(refresher)
+        Thread { License.recheckIfDue(applicationContext) }.start()
     }
 
     override fun onPause() {
@@ -77,6 +95,11 @@ class MainActivity : Activity() {
     }
 
     private fun requestStart() {
+        if (!License.access(this).canBlock) {
+            Toast.makeText(this, R.string.trial_over_toast, Toast.LENGTH_LONG).show()
+            render()
+            return
+        }
         startRequestedAt = System.currentTimeMillis()
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -95,6 +118,22 @@ class MainActivity : Activity() {
     private fun stopBlocking() {
         startRequestedAt = 0L
         AdBlockVpnService.stop(this)
+    }
+
+    private fun activateLicense() {
+        val key = licenseKey.text.toString()
+        activate.isEnabled = false
+        Thread {
+            val result = License.activate(applicationContext, key)
+            runOnUiThread {
+                activate.isEnabled = true
+                when (result) {
+                    LicenseResult.Valid -> Toast.makeText(this, R.string.license_thanks, Toast.LENGTH_LONG).show()
+                    is LicenseResult.Invalid -> Toast.makeText(this, result.reason, Toast.LENGTH_LONG).show()
+                }
+                render()
+            }
+        }.start()
     }
 
     @Deprecated("Deprecated in Java")
@@ -134,6 +173,24 @@ class MainActivity : Activity() {
         val domains = BlockerState.recentBlocked()
         recent.text = if (domains.isEmpty()) getString(R.string.recent_empty) else domains.take(15).joinToString("\n")
         warning.visibility = if (strictPrivateDnsOn()) View.VISIBLE else View.GONE
+        renderLicense()
+    }
+
+    private fun renderLicense() {
+        when (val access = License.access(this)) {
+            Access.Unlocked -> {
+                licenseStatus.setText(R.string.license_unlocked)
+                licensePanel.visibility = View.GONE
+            }
+            is Access.Trial -> {
+                licenseStatus.text = resources.getQuantityString(R.plurals.license_trial, access.daysLeft, access.daysLeft)
+                licensePanel.visibility = View.VISIBLE
+            }
+            Access.Expired -> {
+                licenseStatus.setText(R.string.license_expired)
+                licensePanel.visibility = View.VISIBLE
+            }
+        }
     }
 
     /**

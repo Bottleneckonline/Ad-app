@@ -7,10 +7,11 @@ options:
     iOS: "15.0"
 settings:
   base:
-    DEVELOPMENT_TEAM: ""   # set your Apple Developer team id
+    DEVELOPMENT_TEAM: ""   # your Apple Developer team id; CI passes it in for release builds
+    CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"   # CI passes the build number for release builds
 packages:
   AdFreeCore:
     path: AdFreeCore
@@ -19,14 +20,24 @@ targets:
     type: application
     platform: iOS
     sources:
-      - App
+      - path: App
+        excludes:
+          - "*.storekit"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: online.bottleneck.adfree
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_CFBundleDisplayName: AdFree
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: App/AdFree.entitlements
+    scheme:
+      # Lets the purchase be tested in the simulator without App Store Connect.
+      storeKitConfiguration: App/AdFree.storekit
     dependencies:
       - target: AdFreeTunnel
       - package: AdFreeCore

@@ -18,6 +18,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Test core, build and lint the app
         run: ./gradlew :core:test :app:assembleDebug :app:lintDebug --console=plain
+      - name: Build the release APK (unsigned, checks shrinking/R8)
+        run: ./gradlew :app:assembleRelease --console=plain
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

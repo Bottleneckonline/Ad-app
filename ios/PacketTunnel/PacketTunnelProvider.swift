@@ -83,6 +83,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private static func loadBlocklist() -> DomainBlocklist {
         let defaults = UserDefaults(suiteName: SharedConfig.appGroup)
+        // Trial over and not bought: keep DNS working, but filter nothing.
+        let access = Access.of(
+            unlocked: defaults?.bool(forKey: SharedConfig.unlockedKey) ?? false,
+            firstLaunch: Date(timeIntervalSince1970: defaults?.double(forKey: SharedConfig.firstLaunchKey) ?? 0),
+            now: Date()
+        )
+        guard access.canBlock else { return DomainBlocklist(blocked: [String](), allowed: [String]()) }
         let allowed = (defaults?.string(forKey: SharedConfig.allowlistKey) ?? "")
             .split(whereSeparator: \.isNewline).map(String.init)
         // The general list plus AdFree's own mobile ad network list (both in blocklists/).

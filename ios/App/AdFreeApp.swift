@@ -65,6 +65,7 @@ final class TunnelController: ObservableObject {
 
 struct ContentView: View {
     @StateObject private var tunnel = TunnelController()
+    @StateObject private var store = Store()
     @AppStorage(SharedConfig.allowlistKey, store: UserDefaults(suiteName: SharedConfig.appGroup))
     private var allowlist = ""
 
@@ -76,9 +77,11 @@ struct ContentView: View {
                         get: { tunnel.isOn },
                         set: { on in Task { await tunnel.setEnabled(on) } }
                     ))
-                    Text(tunnel.isOn ? "Ad blocking is ON" : "Ad blocking is OFF").font(.headline)
+                    .disabled(!store.access.canBlock && !tunnel.isOn)
+                    Text(tunnel.isOn && store.access.canBlock ? "Ad blocking is ON" : "Ad blocking is OFF").font(.headline)
                     if let error = tunnel.error { Text(error).foregroundColor(.red) }
                 }
+                licenseSection
                 Section(header: Text("Never block these domains"), footer: Text("One domain per line.")) {
                     TextEditor(text: $allowlist)
                         .frame(minHeight: 100)
@@ -86,8 +89,47 @@ struct ContentView: View {
                         .textInputAutocapitalization(.never)
                     Button("Apply") { Task { await tunnel.restart() } }
                 }
+                Section {
+                    Link("Privacy Policy", destination: SharedConfig.privacyPolicyURL)
+                    Link("Help and Support", destination: SharedConfig.supportURL)
+                }
             }
             .navigationTitle("AdFree")
+            .alert("AdFree", isPresented: Binding(get: { store.message != nil }, set: { if !$0 { store.message = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(store.message ?? "")
+            }
+            .onReceive(tunnel.$status) { _ in
+                // Trial ended while the tunnel was on: turn it off so iOS stops reconnecting it.
+                if !store.access.canBlock && tunnel.isOn { Task { await tunnel.setEnabled(false) } }
+            }
         }
+    }
+
+    @ViewBuilder private var licenseSection: some View {
+        switch store.access {
+        case .unlocked:
+            Section { Text("AdFree is unlocked. Thank you for your support!") }
+        case let .trial(daysLeft):
+            Section(header: Text("Free trial"), footer: Text("One-time purchase. No subscription.")) {
+                Text(daysLeft == 1 ? "1 day left" : "\(daysLeft) days left")
+                buyButtons
+            }
+        case .expired:
+            Section(header: Text("Free trial ended"), footer: Text("One-time purchase. No subscription.")) {
+                Text("Unlock AdFree to keep blocking ads.")
+                buyButtons
+            }
+        }
+    }
+
+    @ViewBuilder private var buyButtons: some View {
+        Button(store.product.map { "Unlock AdFree for \($0.displayPrice)" } ?? "Unlock AdFree") {
+            Task { await store.buy() }
+        }
+        .disabled(store.busy)
+        Button("Restore Purchases") { Task { await store.restore() } }
+            .disabled(store.busy)
     }
 }

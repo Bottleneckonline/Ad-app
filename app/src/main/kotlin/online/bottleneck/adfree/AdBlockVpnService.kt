@@ -85,6 +85,13 @@ class AdBlockVpnService : VpnService() {
         }
         // ACTION_START, or a null/VpnService intent when the system starts us for Always-on VPN.
         showForegroundNotification()
+        if (!License.access(this).canBlock) {
+            // Trial over and not unlocked (also covers Always-on VPN starting us after a reboot).
+            Log.i(TAG, "Trial ended; not starting the filter")
+            shutdown()
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (worker == null) startTunnel()
         return START_STICKY
     }
